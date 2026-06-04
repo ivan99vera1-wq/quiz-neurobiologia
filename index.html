@@ -1,0 +1,800 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Quiz · Neurobiología de Sistemas Funcionales</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #080d18;
+    --surface: #0f1623;
+    --surface2: #162030;
+    --border: #1c2a40;
+    --accent: #7c3aed;
+    --accent2: #a78bfa;
+    --green: #10b981;
+    --red: #f43f5e;
+    --yellow: #f59e0b;
+    --text: #e2e8f0;
+    --muted: #64748b;
+    --card: #0d1525;
+  }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body {
+    font-family:'Syne',sans-serif;
+    background:var(--bg);
+    color:var(--text);
+    min-height:100vh;
+    background-image:
+      radial-gradient(ellipse 70% 40% at 50% 0%, rgba(124,58,237,0.13) 0%, transparent 60%),
+      radial-gradient(ellipse 40% 30% at 90% 80%, rgba(167,139,250,0.06) 0%, transparent 60%);
+  }
+  #stats-bar {
+    position:sticky; top:0; z-index:100;
+    background:rgba(8,13,24,0.93);
+    backdrop-filter:blur(16px);
+    border-bottom:1px solid var(--border);
+    padding:10px 20px;
+    display:none;
+  }
+  .stats-inner {
+    max-width:900px; margin:0 auto;
+    display:flex; align-items:center; gap:8px; flex-wrap:wrap;
+  }
+  .stat-pill {
+    display:flex; align-items:center; gap:5px;
+    background:var(--surface); border:1px solid var(--border);
+    border-radius:999px; padding:4px 11px;
+    font-size:12px; font-family:'JetBrains Mono',monospace; white-space:nowrap;
+  }
+  .stat-pill .label { color:var(--muted); }
+  .stat-pill .val { color:var(--text); font-weight:500; }
+  .stat-pill .val.green { color:var(--green); }
+  .stat-pill .val.red { color:var(--red); }
+  .stat-pill .val.purple { color:var(--accent2); }
+  .progress-wrap {
+    flex:1; min-width:100px; height:4px;
+    background:var(--border); border-radius:999px; overflow:hidden;
+  }
+  .progress-fill {
+    height:100%;
+    background:linear-gradient(90deg, var(--accent), var(--accent2));
+    border-radius:999px; transition:width 0.4s ease;
+  }
+  #app { max-width:900px; margin:0 auto; padding:32px 18px 80px; }
+
+  /* START */
+  #screen-start { text-align:center; padding:60px 10px; }
+  .logo-badge {
+    display:inline-flex; align-items:center; gap:8px;
+    background:var(--surface2); border:1px solid var(--border);
+    border-radius:999px; padding:6px 16px;
+    font-size:12px; color:var(--accent2); margin-bottom:28px;
+    font-family:'JetBrains Mono',monospace; letter-spacing:0.05em;
+  }
+  #screen-start h1 {
+    font-size:clamp(26px,5vw,46px); font-weight:800; line-height:1.1;
+    margin-bottom:14px;
+    background:linear-gradient(135deg,#e2e8f0 0%,var(--accent2) 100%);
+    -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text;
+  }
+  #screen-start p { color:var(--muted); max-width:480px; margin:0 auto 36px; line-height:1.7; font-size:15px; }
+  .meta-grid {
+    display:grid; grid-template-columns:repeat(auto-fit,minmax(130px,1fr));
+    gap:12px; max-width:540px; margin:0 auto 36px;
+  }
+  .meta-card {
+    background:var(--card); border:1px solid var(--border);
+    border-radius:12px; padding:16px; text-align:center;
+  }
+  .meta-card .num { font-size:26px; font-weight:800; color:var(--accent2); font-family:'JetBrains Mono',monospace; }
+  .meta-card .desc { font-size:11px; color:var(--muted); margin-top:4px; text-transform:uppercase; letter-spacing:0.06em; }
+  .btn {
+    display:inline-flex; align-items:center; gap:8px;
+    padding:12px 22px; border-radius:10px;
+    font-family:'Syne',sans-serif; font-size:14px; font-weight:600;
+    cursor:pointer; border:none; transition:all 0.2s ease;
+  }
+  .btn-primary {
+    background:linear-gradient(135deg,var(--accent),var(--accent2));
+    color:#fff; box-shadow:0 4px 20px rgba(124,58,237,0.3);
+  }
+  .btn-primary:hover { transform:translateY(-2px); box-shadow:0 8px 28px rgba(124,58,237,0.4); }
+  .btn-secondary {
+    background:var(--surface2); color:var(--text); border:1px solid var(--border);
+  }
+  .btn-secondary:hover { border-color:var(--accent2); color:var(--accent2); }
+  .btn-danger { background:rgba(244,63,94,0.1); color:var(--red); border:1px solid rgba(244,63,94,0.2); }
+  .btn-danger:hover { background:rgba(244,63,94,0.2); }
+  .btn-group { display:flex; gap:10px; flex-wrap:wrap; justify-content:center; margin-top:14px; }
+
+  /* QUIZ */
+  #screen-quiz { display:none; }
+  .question-header {
+    display:flex; align-items:center; justify-content:space-between;
+    margin-bottom:22px; flex-wrap:wrap; gap:8px;
+  }
+  .q-counter { font-family:'JetBrains Mono',monospace; font-size:12px; color:var(--muted); }
+  .q-tag {
+    font-size:11px; padding:3px 10px; border-radius:999px;
+    border:1px solid var(--border); color:var(--muted);
+    font-family:'JetBrains Mono',monospace;
+  }
+  .q-tag.retry { border-color:rgba(244,63,94,0.4); color:var(--red); background:rgba(244,63,94,0.06); }
+  .question-card {
+    background:var(--card); border:1px solid var(--border);
+    border-radius:18px; padding:28px 28px 24px; margin-bottom:18px;
+    position:relative; overflow:hidden;
+  }
+  .question-card::before {
+    content:''; position:absolute; top:0; left:0; right:0; height:2px;
+    background:linear-gradient(90deg,var(--accent),var(--accent2)); opacity:0.7;
+  }
+  .q-num {
+    font-family:'JetBrains Mono',monospace; font-size:11px;
+    color:var(--accent2); text-transform:uppercase; letter-spacing:0.1em; margin-bottom:12px;
+  }
+  .question-text { font-size:clamp(14px,2.2vw,17px); font-weight:600; line-height:1.65; color:var(--text); }
+  .options-list { display:flex; flex-direction:column; gap:9px; margin-bottom:18px; }
+  .option-btn {
+    display:flex; align-items:flex-start; gap:13px;
+    background:var(--surface); border:1.5px solid var(--border);
+    border-radius:12px; padding:13px 16px;
+    cursor:pointer; transition:all 0.17s ease;
+    text-align:left; font-family:'Syne',sans-serif;
+    font-size:13.5px; color:var(--text); width:100%;
+  }
+  .option-btn:hover:not(:disabled) { border-color:var(--accent2); background:rgba(124,58,237,0.07); transform:translateX(4px); }
+  .option-btn.selected { border-color:var(--accent2); background:rgba(124,58,237,0.1); }
+  .option-btn.correct { border-color:var(--green); background:rgba(16,185,129,0.09); }
+  .option-btn.wrong { border-color:var(--red); background:rgba(244,63,94,0.08); }
+  .option-btn:disabled { cursor:default; }
+  .opt-letter {
+    display:flex; align-items:center; justify-content:center;
+    width:27px; height:27px; min-width:27px;
+    background:var(--surface2); border-radius:6px;
+    font-family:'JetBrains Mono',monospace; font-size:12px; font-weight:700;
+    color:var(--muted); border:1px solid var(--border); transition:all 0.17s;
+  }
+  .option-btn.selected .opt-letter { background:var(--accent); color:#fff; border-color:var(--accent); }
+  .option-btn.correct .opt-letter { background:var(--green); color:#fff; border-color:var(--green); }
+  .option-btn.wrong .opt-letter { background:var(--red); color:#fff; border-color:var(--red); }
+  .opt-text { line-height:1.5; padding-top:4px; }
+  #feedback-box {
+    border-radius:13px; padding:16px 18px; margin-bottom:18px;
+    display:none; animation:fadeSlide 0.28s ease;
+  }
+  @keyframes fadeSlide { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:translateY(0)} }
+  #feedback-box.correct { background:rgba(16,185,129,0.08); border:1px solid rgba(16,185,129,0.25); }
+  #feedback-box.wrong { background:rgba(244,63,94,0.07); border:1px solid rgba(244,63,94,0.2); }
+  .feedback-title { font-size:14px; font-weight:700; margin-bottom:7px; }
+  #feedback-box.correct .feedback-title { color:var(--green); }
+  #feedback-box.wrong .feedback-title { color:var(--red); }
+  .feedback-body { font-size:13px; color:#94a3b8; line-height:1.65; }
+  .action-row { display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
+
+  /* END */
+  #screen-end { display:none; }
+  .end-hero { text-align:center; padding:40px 0 28px; }
+  .score-ring {
+    display:inline-flex; flex-direction:column; align-items:center; justify-content:center;
+    width:138px; height:138px; border-radius:50%;
+    border:3px solid var(--border); background:var(--card);
+    margin-bottom:22px; position:relative;
+  }
+  .score-ring::after {
+    content:''; position:absolute; inset:-3px; border-radius:50%;
+    background:conic-gradient(var(--accent) var(--pct,0%), var(--border) 0%); z-index:-1;
+  }
+  .score-ring .big-num { font-size:34px; font-weight:800; font-family:'JetBrains Mono',monospace; color:var(--accent2); }
+  .score-ring .small-label { font-size:11px; color:var(--muted); }
+  .end-hero h2 { font-size:22px; font-weight:800; margin-bottom:7px; }
+  .end-hero p { color:var(--muted); font-size:14px; }
+  .results-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:12px; margin:24px 0; }
+  .result-card { background:var(--card); border:1px solid var(--border); border-radius:13px; padding:18px; text-align:center; }
+  .result-card .r-num { font-size:30px; font-weight:800; font-family:'JetBrains Mono',monospace; margin-bottom:4px; }
+  .result-card .r-label { font-size:12px; color:var(--muted); text-transform:uppercase; letter-spacing:0.05em; }
+  .weak-section { background:var(--card); border:1px solid var(--border); border-radius:13px; padding:22px; margin-bottom:18px; }
+  .weak-section h3 { font-size:13px; font-weight:700; color:var(--muted); text-transform:uppercase; letter-spacing:0.08em; margin-bottom:14px; }
+  .topic-row { display:flex; align-items:center; gap:10px; margin-bottom:9px; font-size:13px; }
+  .topic-name { flex:1; color:var(--text); }
+  .topic-bar-wrap { width:90px; height:5px; background:var(--border); border-radius:999px; overflow:hidden; }
+  .topic-bar { height:100%; border-radius:999px; }
+  .topic-bar.good { background:var(--green); }
+  .topic-bar.bad { background:var(--red); }
+  .topic-bar.mid { background:var(--yellow); }
+  .topic-pct { font-family:'JetBrains Mono',monospace; font-size:11px; color:var(--muted); min-width:34px; text-align:right; }
+  @media(max-width:600px){
+    .question-card{padding:18px 14px;}
+    .stats-inner{gap:5px;}
+    .stat-pill{padding:3px 8px;font-size:11px;}
+  }
+</style>
+</head>
+<body>
+
+<div id="stats-bar">
+  <div class="stats-inner">
+    <div class="stat-pill"><span class="label">Q</span><span class="val purple" id="st-done">0</span><span class="label">/</span><span class="val" id="st-total">0</span></div>
+    <div class="stat-pill"><span class="label">✅</span><span class="val green" id="st-correct">0</span></div>
+    <div class="stat-pill"><span class="label">❌</span><span class="val red" id="st-wrong">0</span></div>
+    <div class="stat-pill"><span class="label">%</span><span class="val purple" id="st-pct">—</span></div>
+    <div class="progress-wrap"><div class="progress-fill" id="progress-fill" style="width:0%"></div></div>
+  </div>
+</div>
+
+<div id="app">
+  <div id="screen-start">
+    <div class="logo-badge">🧠 Neurobiología · Máster Neurociencia Cognitiva</div>
+    <h1>Simulador de Parcial</h1>
+    <p>Las 38 preguntas del examen con respuesta conocida. Repetición espaciada: los fallos vuelven hasta que los domines.</p>
+    <div class="meta-grid">
+      <div class="meta-card"><div class="num">38</div><div class="desc">Preguntas</div></div>
+      <div class="meta-card"><div class="num">10</div><div class="desc">Temas</div></div>
+      <div class="meta-card"><div class="num">∞</div><div class="desc">Reintentos</div></div>
+    </div>
+    <div class="btn-group">
+      <button class="btn btn-primary" onclick="startQuiz('normal')">▶ Empezar Quiz</button>
+      <button class="btn btn-secondary" onclick="startQuiz('shuffle')">🔀 Modo Aleatorio</button>
+    </div>
+  </div>
+
+  <div id="screen-quiz">
+    <div class="question-header">
+      <span class="q-counter" id="q-counter">Pregunta 1 de 38</span>
+      <span class="q-tag" id="q-tag">Normal</span>
+    </div>
+    <div class="question-card">
+      <div class="q-num" id="q-num">Pregunta 01</div>
+      <div class="question-text" id="q-text">Cargando...</div>
+    </div>
+    <div class="options-list" id="options-list"></div>
+    <div id="feedback-box">
+      <div class="feedback-title" id="fb-title"></div>
+      <div class="feedback-body" id="fb-body"></div>
+    </div>
+    <div class="action-row">
+      <button class="btn btn-primary" id="btn-answer" onclick="handleAnswer()">Responder</button>
+      <button class="btn btn-secondary" id="btn-next" onclick="nextQuestion()" style="display:none">Siguiente →</button>
+      <button class="btn btn-secondary" id="btn-review" onclick="startQuiz('errors')" style="display:none">🔁 Solo errores</button>
+      <button class="btn btn-danger" onclick="resetAll()" style="margin-left:auto">↺ Reiniciar</button>
+    </div>
+  </div>
+
+  <div id="screen-end">
+    <div class="end-hero">
+      <div class="score-ring" id="score-ring">
+        <span class="big-num" id="final-pct">0%</span>
+        <span class="small-label">precisión</span>
+      </div>
+      <h2 id="end-title">Quiz completado</h2>
+      <p id="end-subtitle"></p>
+    </div>
+    <div class="results-grid">
+      <div class="result-card"><div class="r-num" id="r-total" style="color:var(--accent2)">0</div><div class="r-label">Total</div></div>
+      <div class="result-card"><div class="r-num" id="r-correct" style="color:var(--green)">0</div><div class="r-label">Correctas</div></div>
+      <div class="result-card"><div class="r-num" id="r-wrong" style="color:var(--red)">0</div><div class="r-label">Incorrectas</div></div>
+    </div>
+    <div class="weak-section">
+      <h3>📊 Rendimiento por tema</h3>
+      <div id="topic-breakdown"></div>
+    </div>
+    <div class="weak-section">
+      <h3>💡 Recomendaciones</h3>
+      <div id="recommendations" style="font-size:14px;color:#94a3b8;line-height:1.8"></div>
+    </div>
+    <div class="btn-group" style="margin-top:8px">
+      <button class="btn btn-primary" onclick="resetAll()">↺ Reiniciar Quiz</button>
+      <button class="btn btn-secondary" onclick="startQuiz('errors')" id="btn-end-errors">🔁 Repasar errores</button>
+      <button class="btn btn-secondary" onclick="startQuiz('shuffle')">🔀 Modo Aleatorio</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const QUESTIONS = [
+  {
+    id:1, topic:"Potenciales y sinapsis",
+    text:"En una neurona, ¿en qué punto se registraría la mayor amplitud de un EPSP generado en un punto distal de la dendrita?",
+    opts:{A:"En el extremo distal de la dendrita donde se genera",B:"En el soma neuronal",C:"En el axón inicial",D:"En el terminal axónico"},
+    correct:"A",
+    exp:"Los EPSPs se generan localmente y se propagan de forma decremental. La amplitud es máxima en el punto de generación (distal) y disminuye conforme se aleja hacia el soma por la resistencia y capacitancia de la membrana."
+  },
+  {
+    id:2, topic:"Potenciales de acción",
+    text:"¿Cuál de las siguientes afirmaciones es correcta respecto a los potenciales de acción?",
+    opts:{A:"Codifican la información en el dominio de la frecuencia",B:"Facilitan la liberación de un neurotransmisor",C:"Se pueden generar en las dendritas",D:"Todas son correctas"},
+    correct:"D",
+    exp:"Las tres afirmaciones son correctas: (A) la frecuencia de disparo codifica la intensidad del estímulo; (B) al llegar al terminal presináptico desencadenan la exocitosis del neurotransmisor; (C) en algunas neuronas las dendritas tienen canales voltaje-dependientes que permiten PAs dendríticos."
+  },
+  {
+    id:3, topic:"Circuitos locomotores",
+    text:"¿Qué neurotransmisores participan en los circuitos locomotores?",
+    opts:{A:"Acetilcolina",B:"Glutamato",C:"Glicina",D:"Todos los anteriores"},
+    correct:"D",
+    exp:"Los circuitos locomotores (CPG – Central Pattern Generators) emplean múltiples neurotransmisores: acetilcolina en la placa motora, glutamato como excitatorio principal y glicina como inhibitorio en las interneuronas de los CPG medulares."
+  },
+  {
+    id:4, topic:"Glía y transmisión neural",
+    text:"¿Cuál es el papel de los astrocitos en la transmisión de información neural?",
+    opts:{A:"Controlar la concentración del neurotransmisor en la hendidura sináptica",B:"Liberar gliotransmisores como el glutamato",C:"Responder a algunos neurotransmisores",D:"Todas son correctas"},
+    correct:"D",
+    exp:"Los astrocitos participan activamente en la 'sinapsis tripartita': recapturan neurotransmisores regulando su concentración, pueden liberar gliotransmisores (glutamato, ATP, D-serina) y expresan receptores de neurotransmisores respondiendo a la actividad sináptica."
+  },
+  {
+    id:5, topic:"Liberación de neurotransmisores",
+    text:"Según los experimentos de Katz y Miledi sobre liberación de neurotransmisores en la sinapsis química, la liberación puede ser:",
+    opts:{A:"Sincrónica",B:"Asincrónica",C:"Espontánea",D:"Todas son correctas"},
+    correct:"D",
+    exp:"Katz y Miledi describieron tres modos de liberación: sincrónica (inmediata al PA, dependiente de Ca²⁺), asincrónica (retardada, tras estímulos repetidos) y espontánea (independiente del PA, genera mEPPs – miniature end-plate potentials)."
+  },
+  {
+    id:6, topic:"Farmacología neuronal",
+    text:"Un compuesto A se prueba en neuronas. El potencial de membrana basal es -65 mV. A concentraciones de 50 y 200 μM el potencial sube hacia 0 mV, mientras que a 10 μM no cambia significativamente. ¿Cuál es la conclusión correcta?",
+    opts:{A:"Produce hiperpolarización de la membrana",B:"Despolariza a 50 μM pero hiperpolariza a 10 μM",C:"Aumenta la permeabilidad al potasio",D:"Despolariza la membrana a las concentraciones de 50 y 200 μM"},
+    correct:"D",
+    exp:"Si el potencial sube desde -65 mV (se acerca a 0 mV) a concentraciones de 50 y 200 μM, se está produciendo despolarización (el interior se hace menos negativo). La hiperpolarización sería lo contrario (potencial más negativo que -65 mV). A 10 μM el efecto no alcanza umbral."
+  },
+  {
+    id:7, topic:"Neurotransmisores y sinapsis",
+    text:"¿Cuál es la pareja INCORRECTA entre neurotransmisor y mecanismo de eliminación de su efecto sináptico?",
+    opts:{A:"Orexinas – peptidasas",B:"Catecolaminas – transportador de membrana plasmática",C:"Serotonina – lipasas",D:"Acetilcolina – acetilcolinesterasa"},
+    correct:"C",
+    exp:"La serotonina (5-HT) se elimina principalmente por recaptación mediante el transportador SERT (no por lipasas). Las lipasas degradan lípidos, no monoaminas. Las otras parejas son correctas: orexinas por peptidasas, catecolaminas por transportadores DAT/NET, ACh por AChE."
+  },
+  {
+    id:8, topic:"Endocannabinoides y sinapsis",
+    text:"En sinapsis glutamatérgicas, el 2-araquidonilglicerol (2-AG) actúa sobre receptores CB1 para _______ la liberación de glutamato. ¿Dónde se encuentran esos receptores CB1?",
+    opts:{A:"Presinápticamente / estimular",B:"Postsinápticamente / estimular",C:"Postsinápticamente / inhibir",D:"Presinápticamente / inhibir"},
+    correct:"D",
+    exp:"Los endocannabinoides como el 2-AG son mensajeros retrógrados: se sintetizan en la neurona postsináptica y actúan sobre receptores CB1 situados en la membrana PRESINÁPTICA. El efecto es INHIBITORIO: reducen la liberación de glutamato (fenómeno de DSE – Depresión Sináptica por Despolarización)."
+  },
+  {
+    id:9, topic:"Barrera hematoencefálica",
+    text:"En pacientes con barrera hematoencefálica más permeable, ¿afectará la ingesta proteica a la función nerviosa?",
+    opts:{A:"No",B:"Sí, porque las endorfinas están en la mayoría de alimentos",C:"Sí, porque el ácido glutámico presente en proteínas podría excitar neuronas",D:"Todas son incorrectas"},
+    correct:"C",
+    exp:"El ácido glutámico (glutamato) es un aminoácido excitatorio muy abundante en proteínas alimentarias. Normalmente la BHE lo impide. Si la BHE es permeable, el glutamato dietético podría cruzar y activar receptores NMDA/AMPA, causando excitotoxicidad o alteraciones neuronales."
+  },
+  {
+    id:10, topic:"Farmacología neuronal",
+    text:"La DMT (5-hidroxi-N,N-dimetiltriptamina, derivado del Bufo alvarius), ¿cuál es su diana farmacológica principal en el SNC?",
+    opts:{A:"Receptores nicotínicos",B:"Receptores de serotonina (5-HT2A)",C:"Transportador de dopamina",D:"MAO"},
+    correct:"B",
+    exp:"La DMT y sus derivados son agonistas de los receptores serotoninérgicos 5-HT2A, los cuales median sus efectos psicodélicos/alucinógenos. Esta es la misma diana del LSD y la psilocibina. No actúa primariamente sobre receptores nicotínicos ni sobre DAT."
+  },
+  {
+    id:11, topic:"Farmacología neuronal",
+    text:"Los inhibidores de la MAO se dejaron de usar como antidepresivos principalmente porque:",
+    opts:{A:"Disminuyen los niveles de serotonina",B:"Aumentan los niveles de todas las aminas biógenas",C:"Disminuyen los niveles de todas las aminas",D:"Se desconoce la causa"},
+    correct:"B",
+    exp:"La MAO (monoaminooxidasa) degrada todas las aminas biógenas (serotonina, dopamina, noradrenalina, tiramina). Sus inhibidores elevan indiscriminadamente todas estas aminas. El exceso de tiramina (presente en quesos, vinos) puede provocar crisis hipertensivas graves ('efecto queso'), razón principal de su abandono como antidepresivos."
+  },
+  {
+    id:12, topic:"Plasticidad sináptica",
+    text:"¿Qué factores modulan los fenómenos de plasticidad sináptica?",
+    opts:{A:"Edad del individuo",B:"Concentración de calcio intracelular",C:"Frecuencia de estimulación",D:"Todas son correctas"},
+    correct:"D",
+    exp:"La plasticidad sináptica (LTP/LTD) es modulada por múltiples factores: la edad (ventanas críticas del desarrollo), la concentración de Ca²⁺ intracelular (activa CaMKII para LTP o fosfatasas para LTD) y la frecuencia de estimulación (alta frecuencia → LTP; baja frecuencia → LTD)."
+  },
+  {
+    id:13, topic:"Plasticidad sináptica",
+    text:"En el hipocampo se estimulan dos colaterales de Schaffer (A y B) a 0.066 Hz (sin cambios basales). Luego la vía B se estimula a 100 Hz manteniendo A a baja frecuencia. ¿Qué ocurre?",
+    opts:{A:"No se observa ningún cambio en ninguna vía",B:"Se observa LTD en la vía B",C:"Se produce LTP en la vía B",D:"LTP en la vía B y LTD en la vía A"},
+    correct:"C",
+    exp:"La estimulación de alta frecuencia (100 Hz, tetánica) en la colateral B induce Potenciación a Largo Plazo (LTP) en esa vía, mediante entrada de Ca²⁺ por receptores NMDA y activación de CaMKII. La vía A, al no recibir estimulación tetánica, no muestra cambios significativos (la LTD requiere estimulación de baja frecuencia prolongada)."
+  },
+  {
+    id:14, topic:"Sistema nervioso autónomo",
+    text:"Las fibras preganglionares del sistema nervioso autónomo son:",
+    opts:{A:"Adrenérgicas",B:"GABAérgicas",C:"Serotoninérgicas",D:"Colinérgicas"},
+    correct:"D",
+    exp:"Todas las fibras preganglionares del SNA (tanto simpáticas como parasimpáticas) son colinérgicas: liberan acetilcolina y actúan sobre receptores nicotínicos en los ganglios autonómicos. La diferencia simpático/parasimpático está en las fibras postganglionares (adrenérgicas vs. colinérgicas muscarínicas)."
+  },
+  {
+    id:15, topic:"Sistema nervioso autónomo",
+    text:"La estimulación del sistema nervioso simpático _______ la pupila y _______ la presión arterial.",
+    opts:{A:"Dilata / aumenta",B:"Contrae / aumenta",C:"Dilata / disminuye",D:"Contrae / disminuye"},
+    correct:"A",
+    exp:"El simpático prepara para 'lucha o huida': dilata la pupila (midriasis, mediante músculo dilatador del iris vía receptores α1) y aumenta la presión arterial (vasoconstricción periférica y aumento del gasto cardíaco). El parasimpático hace lo opuesto: miosis y vasodilatación."
+  },
+  {
+    id:16, topic:"Sistema nervioso autónomo",
+    text:"¿Cuál de los siguientes órganos tiene ÚNICAMENTE inervación simpática?",
+    opts:{A:"Riñones",B:"Médula adrenal",C:"Todas las opciones son correctas",D:"Músculos piloerectores"},
+    correct:"C",
+    exp:"Riñones, médula adrenal y músculos piloerectores reciben exclusivamente inervación simpática. La médula adrenal es especial: es análoga a un ganglio simpático postganglionar que libera adrenalina/noradrenalina directamente a la sangre. Los músculos piloerectores (erización del vello) tampoco tienen inervación parasimpática."
+  },
+  {
+    id:17, topic:"Estrés y neuroendocrinología",
+    text:"Entre las funciones de los corticoides (glucocorticoides) NO se encuentra:",
+    opts:{A:"Aumentar los niveles de glucosa en sangre",B:"Inducir retención de agua y sodio",C:"Aumentar la respuesta inmune",D:"Aumentar la presión arterial"},
+    correct:"C",
+    exp:"Los glucocorticoides (cortisol) INHIBEN (no aumentan) la respuesta inmune, siendo antiinflamatorios e inmunosupresores. Sí elevan la glucemia (gluconeogénesis), inducen retención de Na⁺/agua (acción mineralocorticoide) y aumentan la PA (sensibilizan vasos a catecolaminas). La inmunosupresión es la razón por la que se usan en trasplantes."
+  },
+  {
+    id:18, topic:"Estrés y neuroendocrinología",
+    text:"En condiciones normales, ¿por qué los niveles de cortisol permanecen relativamente estables?",
+    opts:{
+      A:"Elevados niveles de cortisol inhiben la liberación de CRH y ACTH (retroalimentación negativa), reduciendo la secreción de cortisol",
+      B:"El hipotálamo libera CIH que inhibe ACTH en la adenohipófisis",
+      C:"Los niveles de cortisol siempre permanecen constantes independientemente de los estresores",
+      D:"Ninguna es correcta"
+    },
+    correct:"A",
+    exp:"El eje hipotálamo-hipófisis-adrenal funciona mediante retroalimentación negativa: el cortisol elevado inhibe al hipotálamo (↓CRH) y a la adenohipófisis (↓ACTH), reduciendo su propia secreción. Este mecanismo homeostático mantiene los niveles basales. Los niveles no son absolutamente constantes (tienen ritmo circadiano)."
+  },
+  {
+    id:19, topic:"Estrés y neuroendocrinología",
+    text:"Durante el estrés, el aumento de cortisol se detecta principalmente en la fase de _______, cuya función principal es _______.",
+    opts:{
+      A:"Alarma / desencadenar la respuesta de lucha, huida y reparación",
+      B:"Resistencia / asegurar el suministro de glucosa al cerebro",
+      C:"Agotamiento / evitar los efectos nocivos del estrés",
+      D:"Ninguna es correcta"
+    },
+    correct:"B",
+    exp:"En la fase de resistencia (respuesta al estrés prolongado), el cortisol se eleva sostenidamente para movilizar glucosa mediante gluconeogénesis hepática, asegurando el suministro energético al cerebro y músculos. En la fase de alarma predominan las catecolaminas (adrenalina). En el agotamiento, las reservas se depletan."
+  },
+  {
+    id:20, topic:"Estrés y neuroendocrinología",
+    text:"María, 32 años, lleva meses estresada laboralmente y presenta malestar físico y anímico. ¿Cuáles de estos síntomas podrían deberse al estrés crónico?",
+    opts:{A:"Dolor de estómago",B:"Ganancia de peso",C:"Debilidad muscular",D:"Todas las anteriores"},
+    correct:"D",
+    exp:"El estrés crónico con hipercortisolemia provoca: dolor de estómago (úlceras por ↑ácido gástrico, ↓ prostaglandinas protectoras), ganancia de peso (redistribución adiposa central, ↑apetito por grelina), y debilidad muscular (catabolismo proteico muscular para gluconeogénesis). Además: inmunosupresión, insomnio, alteraciones del estado de ánimo."
+  },
+  {
+    id:23, topic:"Organización del SN",
+    text:"¿Cuál de las siguientes afirmaciones sobre la organización del sistema nervioso es INCORRECTA?",
+    opts:{
+      A:"El SNC está encerrado en un estuche óseo formado por cráneo y columna vertebral",
+      B:"Los nervios craneales, originados en el encéfalo, forman parte del SNC",
+      C:"El SNA presenta estructuras tanto en el SNC como en el SNP",
+      D:"La sustancia gris y blanca tienen disposición inversa en encéfalo vs. médula espinal"
+    },
+    correct:"B",
+    exp:"Los nervios craneales forman parte del Sistema Nervioso PERIFÉRICO (SNP), no del SNC. Aunque se originan en núcleos del encéfalo (SNC), los propios nervios que salen del cráneo son SNP. El SNC incluye encéfalo y médula espinal. Las otras afirmaciones son correctas."
+  },
+  {
+    id:24, topic:"Neuroanatomía cortical",
+    text:"¿Qué lóbulos separa el surco lateral (cisura de Silvio)?",
+    opts:{A:"Lóbulo frontal del parietal y occipital",B:"Lóbulo occipital, temporal y de la ínsula",C:"Lóbulo frontal y parietal del temporal",D:"Lóbulo temporal y parietal"},
+    correct:"C",
+    exp:"La cisura de Silvio (surco lateral) separa el lóbulo frontal y parietal (por encima) del lóbulo temporal (por debajo). En su profundidad se encuentra la ínsula. Es un surco fundamental para la topografía cortical. El surco central (de Rolando) separa frontal de parietal."
+  },
+  {
+    id:25, topic:"Neuroanatomía cortical",
+    text:"Respecto al área de Broca (corteza motora del lenguaje), indica la respuesta INCORRECTA:",
+    opts:{
+      A:"Se encuentra en el lóbulo temporal, adyacente al surco lateral",
+      B:"Situada en el hemisferio izquierdo en el 95% de la población",
+      C:"Interconectada con el área de Wernicke y la corteza visual",
+      D:"Su lesión provoca habla telegráfica; el paciente sabe lo que quiere decir pero no puede"
+    },
+    correct:"A",
+    exp:"El área de Broca (áreas 44 y 45 de Brodmann) se localiza en el lóbulo FRONTAL (giro frontal inferior), NO en el temporal. El área de Wernicke sí está en el temporal. Las opciones B, C y D son correctas. La confusión frecuente es situar Broca en el temporal por su proximidad al surco lateral."
+  },
+  {
+    id:26, topic:"Neuroanatomía cortical",
+    text:"En la corteza somatosensorial primaria, ¿cómo se representan las regiones corporales en el homúnculo?",
+    opts:{
+      A:"En función del número de receptores sensitivos presentes en cada región",
+      B:"Todas las regiones están representadas por igual",
+      C:"En función de la complejidad de movimientos que pueda realizar cada región",
+      D:"No existe representación corporal en la corteza somatosensorial primaria"
+    },
+    correct:"A",
+    exp:"El homúnculo somatosensorial (de Penfield) representa las regiones corporales proporcionalmente a su densidad de receptores sensitivos y a la agudeza tactil/discriminativa, no a su tamaño físico. Por eso manos, labios y lengua tienen representación desproporcionadamente grande, pues tienen alta densidad de mecanorreceptores."
+  },
+  {
+    id:27, topic:"Neuroanatomía cortical",
+    text:"Las conexiones interhemisféricas más numerosas del cerebro de Einstein, que podrían explicar su inteligencia, ¿cómo se denominan y de qué estructura forman parte?",
+    opts:{
+      A:"Fibras de proyección – Corona radiada",
+      B:"Fibras de asociación – Fascículo longitudinal superior",
+      C:"Fibras comisurales – Cuerpo calloso",
+      D:"Fibras de proyección – Cápsula interna"
+    },
+    correct:"C",
+    exp:"Las fibras que conectan ambos hemisferios son fibras COMISURALES y forman parte principalmente del CUERPO CALLOSO (la comisura más grande del cerebro). Las fibras de proyección conectan córtex con estructuras subcorticales. Las de asociación conectan áreas del mismo hemisferio. El cuerpo calloso contiene ~200-300 millones de axones."
+  },
+  {
+    id:28, topic:"Neuroanatomía",
+    text:"¿Cuál de las siguientes características NO corresponde a la posición anatómica estándar?",
+    opts:{A:"Bipedestación",B:"Situado frente al observador",C:"Adulto de unos 20-25 años",D:"Palmas de las manos pegadas a los muslos"},
+    correct:"D",
+    exp:"En la posición anatómica estándar las palmas de las manos miran hacia ADELANTE (supinación), NO pegadas a los muslos. Se está de pie (bipedestación), mirando al frente, con brazos a los lados y palmas hacia el observador. La edad no es un criterio de la posición anatómica, aunque C es debatible, la respuesta más incorrecta es D."
+  },
+  {
+    id:29, topic:"Diencéfalo",
+    text:"¿Cuál de las siguientes afirmaciones sobre el tálamo es INCORRECTA?",
+    opts:{
+      A:"Forma la porción más voluminosa del diencéfalo",
+      B:"En el 70% de los individuos existe una adhesión intertalámica que une ambos tálamos",
+      C:"Constituye la puerta de entrada de toda la información inconsciente al encéfalo",
+      D:"Está formado por un gran conjunto de núcleos de sustancia gris"
+    },
+    correct:"C",
+    exp:"El tálamo es la puerta de entrada de casi toda la información CONSCIENTE (sensorial y motora) que llega a la corteza, no la inconsciente. La información inconsciente generalmente no requiere procesamiento talámico. Las otras afirmaciones son correctas: es la mayor estructura del diencéfalo, existe adhesión intertalámica en ~70% y está formado por numerosos núcleos grises."
+  },
+  {
+    id:30, topic:"Diencéfalo",
+    text:"¿En qué región del diencéfalo se encuentra la glándula pineal, productora de melatonina?",
+    opts:{A:"Epitálamo",B:"Tálamo",C:"Núcleos habenulares",D:"Hipotálamo"},
+    correct:"A",
+    exp:"La glándula pineal (epífisis cerebral) forma parte del EPITÁLAMO, la región dorsal del diencéfalo. El epitálamo incluye también los núcleos habenulares y la comisura posterior. La pineal produce melatonina siguiendo el ritmo circadiano (regulado por la luz a través del núcleo supraquiasmático del hipotálamo)."
+  },
+  {
+    id:31, topic:"Sistema límbico",
+    text:"¿Cuál de las siguientes estructuras NO forma parte de las estructuras corticales (lóbulo límbico) del sistema límbico?",
+    opts:{A:"Giro parahipocampal",B:"Giro cingular",C:"Subículo",D:"Complejo amigdalino"},
+    correct:"D",
+    exp:"El complejo amigdalino es una estructura SUBCORTICAL del sistema límbico, no cortical. Las estructuras del lóbulo límbico (cortical) incluyen: giro cingular, giro parahipocampal, subículo, uncus e hipocampo. La amígdala, aunque límbica, es un núcleo de sustancia gris subcortical en el lóbulo temporal medial."
+  },
+  {
+    id:32, topic:"Sistema límbico",
+    text:"En pacientes con Alzheimer, ¿qué región afectada explica la dificultad para recordar acontecimientos recientes en las primeras fases?",
+    opts:{A:"Corteza cingulada anterior",B:"Formación del hipocampo",C:"Giro parahipocampal",D:"Complejo amigdalino"},
+    correct:"B",
+    exp:"La formación hipocampal (hipocampo + giro dentado + subículo) es esencial para la consolidación de la memoria declarativa (episódica y semántica). En el Alzheimer, la atrofia hipocampal es uno de los primeros signos, explicando la amnesia anterógrada (dificultad para nuevos recuerdos). El caso H.M. demostró este papel del hipocampo."
+  },
+  {
+    id:33, topic:"Tronco del encéfalo",
+    text:"Ordena de craneal (superior) a caudal (inferior) las estructuras del tronco del encéfalo:",
+    opts:{A:"Puente > mesencéfalo > bulbo raquídeo",B:"Mesencéfalo > puente > bulbo raquídeo",C:"Mesencéfalo > bulbo raquídeo > puente",D:"Bulbo raquídeo > puente > mesencéfalo"},
+    correct:"B",
+    exp:"De craneal a caudal: MESENCÉFALO (más superior, conecta con diencéfalo) → PUENTE (protuberancia, en el medio) → BULBO RAQUÍDEO (más inferior/caudal, continúa con la médula espinal). Mnemotecnia: 'Mi Puente Baja' (Mesencéfalo-Puente-Bulbo)."
+  },
+  {
+    id:34, topic:"Tronco del encéfalo",
+    text:"¿Cuál de las siguientes funciones NO es realizada por la formación reticular?",
+    opts:{A:"Control del centro respiratorio",B:"Control del movimiento corporal y de los ojos",C:"Control del centro cardiovascular",D:"Control de la percepción del transcurso del tiempo"},
+    correct:"D",
+    exp:"La formación reticular controla funciones vitales (respiración, cardiovascular), el ciclo sueño-vigilia (SARA), el tono muscular y el movimiento ocular. La percepción del tiempo transcurrido (timing) no es función de la formación reticular sino de estructuras como el cerebelo, ganglios basales y corteza prefrontal."
+  },
+  {
+    id:35, topic:"Cerebelo",
+    text:"El cerebelo se une al tronco del encéfalo a través de:",
+    opts:{A:"Vermis",B:"Colículos",C:"Pedúnculos",D:"Lóbulo floculonodular"},
+    correct:"C",
+    exp:"El cerebelo se conecta al tronco del encéfalo mediante tres pares de PEDÚNCULOS cerebelosos: superior (al mesencéfalo), medio (al puente, el mayor) e inferior (al bulbo). El vermis es la parte central del cerebelo. Los colículos son estructuras del tecto mesencefálico. El floculonodular es un lóbulo del cerebelo."
+  },
+  {
+    id:36, topic:"Tronco del encéfalo",
+    text:"¿Dónde se encuentra el Sistema Activador Reticular Ascendente (SARA), responsable del estado de vigilia?",
+    opts:{A:"Corteza prefrontal",B:"Núcleos de la base",C:"Tronco del encéfalo",D:"Cerebelo"},
+    correct:"C",
+    exp:"El SARA es una red de núcleos situada en el TRONCO DEL ENCÉFALO (principalmente formación reticular del mesencéfalo y puente), que incluye núcleos noradrenérgicos (locus coeruleus), serotoninérgicos (rafe), colinérgicos y histaminérgicos. Proyecta difusamente a la corteza manteniéndola alerta. Su lesión provoca coma."
+  },
+  {
+    id:37, topic:"Médula espinal",
+    text:"¿Cuál de las siguientes afirmaciones sobre la médula espinal es CORRECTA?",
+    opts:{
+      A:"Forma parte del SNP junto con los nervios espinales",
+      B:"Ocupa la totalidad del conducto vertebral para dar lugar a los 31 pares de nervios espinales",
+      C:"La sustancia gris se organiza en cordones, por donde viaja la información ascendente y descendente",
+      D:"La información sensitiva entra por el asta dorsal y la motora sale por el asta ventral"
+    },
+    correct:"D",
+    exp:"Ley de Bell-Magendie: la información sensitiva (aferente) entra por el asta dorsal (raíz posterior) y la motora (eferente) sale por el asta ventral (raíz anterior). La médula es SNC (no SNP). No ocupa todo el conducto vertebral (termina en L1-L2, dando lugar a la cola de caballo). Los cordones son sustancia blanca, no gris."
+  },
+  {
+    id:38, topic:"Meninges y LCR",
+    text:"¿Qué secuencia de estructuras es correcta, de más externa a más interna?",
+    opts:{
+      A:"Duramadre > piamadre > aracnoides",
+      B:"Espacio epidural > duramadre > espacio subdural",
+      C:"Piamadre > espacio subaracnoideo > aracnoides",
+      D:"Espacio subaracnoideo > espacio subdural > espacio epidural"
+    },
+    correct:"B",
+    exp:"De externo a interno: hueso → ESPACIO EPIDURAL → DURAMADRE → ESPACIO SUBDURAL → aracnoides → espacio subaracnoideo → piamadre → SNC. La opción B es correcta. Mnemotecnia para meninges: 'Dura Araña Pia' (Duramadre-Aracnoides-Piamadre), de externa a interna."
+  },
+  {
+    id:39, topic:"Meninges y LCR",
+    text:"¿Cuál es la localización correcta del líquido cefalorraquídeo (LCR)?",
+    opts:{A:"Sistema ventricular y espacio subaracnoideo",B:"Sistema ventricular y espacio epidural",C:"Espacio subdural y sistema ventricular",D:"Espacio subaracnoideo y espacio subdural"},
+    correct:"A",
+    exp:"El LCR circula por el SISTEMA VENTRICULAR (ventrículos laterales → III ventrículo → acueducto de Silvio → IV ventrículo) y el ESPACIO SUBARACNOIDEO (entre aracnoides y piamadre). Se produce en los plexos coroideos y se reabsorbe en las granulaciones aracnoideas. No está en epidural ni subdural."
+  },
+  {
+    id:40, topic:"Vascularización cerebral",
+    text:"Un paciente de 73 años sufre un ACV con afasia de expresión y comprensión (áreas de Broca y Wernicke afectadas). ¿Qué arteria se habrá visto afectada?",
+    opts:{A:"Arteria cerebral posterior",B:"Arteria cerebral anterior",C:"Arteria cerebral media",D:"Arterias vertebrales"},
+    correct:"C",
+    exp:"La ARTERIA CEREBRAL MEDIA (ACM, rama de la carótida interna) irriga la mayor parte de la corteza lateral, incluyendo las áreas del lenguaje: Broca (frontal inferior) y Wernicke (temporal superior). Un infarto de ACM en hemisferio izquierdo causa afasia global. La ACA irriga la cara medial (piernas). La ACP irriga occipital y temporal inferior."
+  }
+];
+
+// ═══════════════════════════════════════════════════
+// STATE
+// ═══════════════════════════════════════════════════
+let state = {
+  queue:[], current:0, selected:null, answered:false,
+  totalAnswered:0, totalCorrect:0, totalWrong:0,
+  errors:{}, topicStats:{}, mode:'normal'
+};
+
+function shuffle(arr){
+  const a=[...arr];
+  for(let i=a.length-1;i>0;i--){
+    const j=Math.floor(Math.random()*(i+1));
+    [a[i],a[j]]=[a[j],a[i]];
+  }
+  return a;
+}
+
+function startQuiz(mode){
+  state.mode=mode;
+  state.totalAnswered=0; state.totalCorrect=0; state.totalWrong=0;
+  state.errors={}; state.topicStats={}; state.current=0;
+  state.answered=false; state.selected=null;
+
+  let pool=[...QUESTIONS];
+  if(mode==='errors'){
+    const ids=Object.keys(state.errors).map(Number);
+    pool=ids.length>0?QUESTIONS.filter(q=>ids.includes(q.id)):[...QUESTIONS];
+  }
+  if(mode==='shuffle'||mode==='errors') pool=shuffle(pool);
+  state.queue=pool.map(q=>({...q}));
+
+  document.getElementById('screen-start').style.display='none';
+  document.getElementById('screen-end').style.display='none';
+  document.getElementById('screen-quiz').style.display='block';
+  document.getElementById('stats-bar').style.display='flex';
+
+  renderQuestion(); updateStats();
+}
+
+function renderQuestion(){
+  const q=state.queue[state.current];
+  if(!q){showEnd();return;}
+  state.answered=false; state.selected=null;
+
+  const isRetry=state.errors[q.id]>0;
+  const tag=document.getElementById('q-tag');
+  tag.textContent=isRetry?'🔁 Reintento':(state.mode==='shuffle'?'🔀 Aleatorio':'Normal');
+  tag.className='q-tag'+(isRetry?' retry':'');
+
+  document.getElementById('q-counter').textContent=`Pregunta ${state.current+1} de ${state.queue.length}`;
+  document.getElementById('q-num').textContent=`Pregunta ${String(q.id).padStart(2,'0')} · ${q.topic}`;
+  document.getElementById('q-text').textContent=q.text;
+
+  const ol=document.getElementById('options-list');
+  ol.innerHTML='';
+  Object.entries(q.opts).forEach(([letter,text])=>{
+    const btn=document.createElement('button');
+    btn.className='option-btn'; btn.dataset.letter=letter;
+    btn.innerHTML=`<span class="opt-letter">${letter}</span><span class="opt-text">${text}</span>`;
+    btn.onclick=()=>selectOption(letter);
+    ol.appendChild(btn);
+  });
+
+  document.getElementById('feedback-box').style.display='none';
+  document.getElementById('btn-answer').style.display='inline-flex';
+  document.getElementById('btn-next').style.display='none';
+  document.getElementById('btn-review').style.display='none';
+}
+
+function selectOption(letter){
+  if(state.answered)return;
+  state.selected=letter;
+  document.querySelectorAll('.option-btn').forEach(btn=>{
+    btn.classList.toggle('selected',btn.dataset.letter===letter);
+  });
+}
+
+function handleAnswer(){
+  if(!state.selected){shakeBtn();return;}
+  if(state.answered)return;
+  state.answered=true; state.totalAnswered++;
+
+  const q=state.queue[state.current];
+  const correct=state.selected===q.correct;
+
+  if(!state.topicStats[q.topic]) state.topicStats[q.topic]={correct:0,total:0};
+  state.topicStats[q.topic].total++;
+
+  if(correct){
+    state.totalCorrect++;
+    state.topicStats[q.topic].correct++;
+  } else {
+    state.totalWrong++;
+    state.errors[q.id]=(state.errors[q.id]||0)+1;
+    const remaining=state.queue.length-state.current-1;
+    if(remaining>0){
+      const at=state.current+1+Math.min(3,Math.floor(remaining/2));
+      state.queue.splice(at,0,{...q});
+    } else {
+      state.queue.push({...q});
+    }
+  }
+
+  document.querySelectorAll('.option-btn').forEach(btn=>{
+    btn.disabled=true;
+    if(btn.dataset.letter===q.correct) btn.classList.add('correct');
+    else if(btn.dataset.letter===state.selected&&!correct) btn.classList.add('wrong');
+    btn.classList.remove('selected');
+  });
+
+  const fb=document.getElementById('feedback-box');
+  fb.className='feedback-box '+(correct?'correct':'wrong');
+  fb.style.display='block';
+  document.getElementById('fb-title').textContent=correct?'✅ ¡Correcto!':`❌ Incorrecto — Respuesta correcta: ${q.correct}`;
+  document.getElementById('fb-body').textContent=q.exp;
+  document.getElementById('btn-answer').style.display='none';
+  document.getElementById('btn-next').style.display='inline-flex';
+  if(Object.keys(state.errors).length>0) document.getElementById('btn-review').style.display='inline-flex';
+  updateStats();
+}
+
+function nextQuestion(){
+  state.current++;
+  if(state.current>=state.queue.length) showEnd();
+  else{ renderQuestion(); updateStats(); }
+}
+
+function updateStats(){
+  document.getElementById('st-done').textContent=state.totalAnswered;
+  document.getElementById('st-total').textContent=state.queue.length;
+  document.getElementById('st-correct').textContent=state.totalCorrect;
+  document.getElementById('st-wrong').textContent=state.totalWrong;
+  const pct=state.totalAnswered>0?Math.round(state.totalCorrect/state.totalAnswered*100):0;
+  document.getElementById('st-pct').textContent=state.totalAnswered>0?pct+'%':'—';
+  document.getElementById('progress-fill').style.width=Math.min(state.totalAnswered/Math.max(state.queue.length,1)*100,100)+'%';
+}
+
+function showEnd(){
+  document.getElementById('screen-quiz').style.display='none';
+  document.getElementById('screen-end').style.display='block';
+  const pct=state.totalAnswered>0?Math.round(state.totalCorrect/state.totalAnswered*100):0;
+  document.getElementById('final-pct').textContent=pct+'%';
+  document.getElementById('score-ring').style.setProperty('--pct',pct+'%');
+  document.getElementById('r-total').textContent=state.totalAnswered;
+  document.getElementById('r-correct').textContent=state.totalCorrect;
+  document.getElementById('r-wrong').textContent=state.totalWrong;
+
+  let title='🎉 ¡Excelente dominio!', subtitle='Estás preparado para el parcial.';
+  if(pct<50){title='📚 Necesitas repasar más';subtitle='Repasa los temas básicos y vuelve a intentarlo.';}
+  else if(pct<70){title='🟡 Vas por buen camino';subtitle='Refuerza los temas débiles antes del parcial.';}
+  else if(pct<85){title='👍 Buen nivel';subtitle='Practica los errores para asegurar el aprobado.';}
+  document.getElementById('end-title').textContent=title;
+  document.getElementById('end-subtitle').textContent=subtitle;
+
+  const sorted=Object.entries(state.topicStats).sort((a,b)=>a[1].correct/a[1].total-b[1].correct/b[1].total);
+  const bd=document.getElementById('topic-breakdown');
+  bd.innerHTML='';
+  sorted.forEach(([topic,d])=>{
+    const p=Math.round(d.correct/d.total*100);
+    const cls=p>=80?'good':p>=50?'mid':'bad';
+    bd.innerHTML+=`<div class="topic-row"><span class="topic-name">${topic}</span><div class="topic-bar-wrap"><div class="topic-bar ${cls}" style="width:${p}%"></div></div><span class="topic-pct">${p}%</span></div>`;
+  });
+
+  const weak=sorted.filter(([,d])=>d.correct/d.total<0.7).map(([t])=>t);
+  const strong=sorted.filter(([,d])=>d.correct/d.total>=0.85).map(([t])=>t);
+  let rec='';
+  if(weak.length) rec+=`<b>🔴 Temas a reforzar:</b> ${weak.join(', ')}.<br>`;
+  if(strong.length) rec+=`<b>🟢 Temas dominados:</b> ${strong.join(', ')}.<br>`;
+  if(Object.keys(state.errors).length>0) rec+=`<b>💡 Consejo:</b> Usa "Repasar errores" para practicar solo las preguntas falladas con repetición espaciada.`;
+  document.getElementById('recommendations').innerHTML=rec||'Completa el quiz para ver recomendaciones.';
+  if(Object.keys(state.errors).length===0) document.getElementById('btn-end-errors').style.display='none';
+}
+
+function resetAll(){
+  state.errors={}; state.topicStats={};
+  document.getElementById('screen-quiz').style.display='none';
+  document.getElementById('screen-end').style.display='none';
+  document.getElementById('stats-bar').style.display='none';
+  document.getElementById('screen-start').style.display='block';
+}
+
+function shakeBtn(){
+  const btn=document.getElementById('btn-answer');
+  btn.style.transform='translateX(-5px)';
+  setTimeout(()=>btn.style.transform='translateX(5px)',80);
+  setTimeout(()=>btn.style.transform='translateX(0)',160);
+}
+</script>
+</body>
+</html>
